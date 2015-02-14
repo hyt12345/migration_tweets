@@ -1,0 +1,97 @@
+---
+title: "Preliminary Analysis of Migration Tweets, October 2013-February 2014"
+date: "February 11, 2015"
+author: "Roushdat Elaheebocus, Justin Murphy, Jessica Ogden, and Bindi Shah"
+output: html_document
+---
+```{r, cache=FALSE, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+setwd("~/Dropbox/gh_projects/migration_tweets")
+require(jsonlite)
+require(lubridate)
+require(ggplot2)
+require(stringr)
+
+# df <- fromJSON("output.json", flatten=TRUE)
+# df<-df[complete.cases(df["user.screen_name"]),]
+# save(df, file="cleaned_data/complete.RData")
+
+load("cleaned_data/complete.RData")
+```
+
+This document is a preliminary analysis of every Twitter status update created between October 1, 2013 and March 1, 2014 which refers to immigration and contains any of the following terms: Bulgaria/Bulgarian, Romania/Romanian, England, UK, Britain. The sample contains a total of `r length(df$created_at)` tweets.
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.cap="Tweets on UK-Romanian-Bulgarian Migration, October 2013-February 2014"}
+
+# summary(as.factor(df$created_at))
+
+df$time<-as.POSIXct(dmy_hms(substr(df$created_at, 6, 25))) # Doesnt work, need to wrangle date
+
+# random<-df[sample(nrow(df), 1000), ]
+# random<-subset(random, select=c("user.screen_name", "user.description", "created_at", "text", "time"))
+# random<-random[order(random$time),]
+# write.csv(random, file="cleaned_data/random_sample.csv")
+
+
+time.series<-ggplot(data=df, aes(x=time)) +
+  geom_bar(aes(fill=..count..)) +
+  theme_bw() +
+  labs(y="Tweets", x="Month", title="UK/Romanian/Bulgarian Migration Tweets, 10/2013 - 02/2014")
+
+time.series
+```
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.cap="Most Frequent Tweeters"}
+counts<-as.data.frame(table(df$user.screen_name))
+counts<-subset(counts, Freq>85)
+rownames(counts)<-NULL
+counts$Var1<-factor(counts$Var1)
+
+frequencies<-ggplot(data=counts, aes(x=reorder(Var1, Freq), y=Freq)) +
+  geom_point(stat="identity") +
+  labs(x="Username", y="Number of Tweets", title="Most Frequent Tweeters") +
+  theme_bw() +
+  coord_flip()
+
+frequencies
+```
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.cap="Most Retweeted Users (Total Retweets Received)"}
+
+df$text=sapply(df$text,function(row) iconv(row,to='UTF-8')) #remove odd characters
+trim <- function (x) sub('@','',x) # remove @ symbol from user names
+# extract who's been retweeted by whom
+df$rt=sapply(df$text,function(tweet) trim(str_match(tweet,"^RT (@[[:alnum:]_]*)")[2]))
+totalrts<-sum(!is.na(df$rt)) # see how many tweets are retweets
+# sum(!is.na(df$rt))/length(df$rt) # the ratio of retweets to tweets
+countRT<-table(df$rt)
+countRT<-sort(countRT)
+countRT.subset=subset(countRT,countRT>=4) # subset those RT’d more than 5 times
+countRT.subset.df<-data.frame(people=as.factor(unlist(dimnames(countRT.subset))),RT_count=as.numeric(unlist(countRT.subset)))
+
+retweets<-ggplot(countRT.subset.df, aes(reorder(people,RT_count),RT_count)) +
+  xlab("Username") + ylab("Number of Retweets Received") +
+  ggtitle("Most Retweeted Users") +
+  geom_point(stat="identity") + coord_flip() + theme_bw()
+
+retweets
+```
+
+There is a total of `r totalrts` retweets in the sample. I'm pretty sure this is much much fewer than other studies of more specific conversations, suggesting there is a lot of disconnected tweeting.
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.cap="Most Retweeted Users (As a Share of Total Tweets)"}
+t<-as.data.frame(table(df$user.screen_name)) # make table with counts of tweets per person
+rt<-as.data.frame(table(df$rt)) # make table with counts of retweets per person
+t.rt<-merge(t,rt,by="Var1") # combine tweet count and retweet count per person
+t.rt["ratio"]<-t.rt$Freq.y / t.rt$Freq.x # creates new col and adds ratio tweet/retweet
+sort.t.rt<-t.rt[order(t.rt$ratio),] # sort it to put names in order by ratio
+sort.t.rt.subset<-subset(sort.t.rt,sort.t.rt$Freq.y>3) # exclude those with less than 5 tweets
+sort.t.rt.subset.drop<-droplevels(sort.t.rt.subset) # drop unused levels that got in there
+
+ratios<-ggplot(sort.t.rt.subset, aes(reorder(Var1,ratio),ratio)) +
+  xlab("Username") + ylab("Ratio of Retweets to Total Tweets") +
+  ggtitle("Most Retweeted Users") +
+  geom_point(stat="identity") + coord_flip() + theme_bw()
+
+ratios
+```
+
