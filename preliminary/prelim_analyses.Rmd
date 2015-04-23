@@ -3,13 +3,19 @@ title: "Preliminary Analysis of Migration Tweets, October 2013-February 2014"
 date: "February 11, 2015"
 author: "Roushdat Elaheebocus, Justin Murphy, Jessica Ogden, and Bindi Shah"
 output: html_document
+keep_md: true
 ---
 ```{r, cache=FALSE, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
 setwd("~/Dropbox/gh_projects/migration_tweets")
 require(jsonlite)
 require(lubridate)
 require(ggplot2)
+require(twitteR)
 require(stringr)
+library(igraph)
+require(tm)
+#require(Snowball)
+require(RColorBrewer)
 
 # df <- fromJSON("output.json", flatten=TRUE)
 # df<-df[complete.cases(df["user.screen_name"]),]
@@ -95,3 +101,281 @@ ratios<-ggplot(sort.t.rt.subset, aes(reorder(Var1,ratio),ratio)) +
 ratios
 ```
 
+
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.cap="Top links"}
+df$link=sapply(df$text,function(tweet) str_extract(tweet,("http[[:print:]]+"))) # creates new field and extracts the links contained in the tweet
+df$link=sapply(df$text,function(tweet) str_extract(tweet,"http[[:print:]]{16}")) # limits to just 16 characters after http so I just get the shortened link. They are all shortened, so this is fine, but there might be a better way using regex.
+countlink<-table(df$link) # get frequencies of each link
+countlink<-sort(countlink) # sort them
+countlink<-data.frame(table(na.omit((df$link))))
+countlink<-subset(countlink,countlink$Freq>40) # exclude those with 300 tweets or less
+
+links<-ggplot(countlink, aes(reorder(Var1, Freq), Freq)) +
+  geom_bar(stat="identity") + coord_flip() + theme_bw() +
+  xlab("Link") + ylab("Frequency") +
+  labs(title="Most Shared Links")
+
+links
+```
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, fig.cap="Whole Network"}
+setwd("~/Dropbox/gh_projects/migration_tweets/cleaned_data")
+el.df<-read.csv("migration_el.csv") # read in edgelist
+setwd("~/Dropbox/gh_projects/migration_tweets")
+el.df<-el.df[,2:3]
+rt_graph2 = graph.edgelist(as.matrix(el.df), directed=TRUE)
+
+# Make and plot graph
+rt_graph2 = delete.vertices(rt_graph2, V(rt_graph2)[ degree(rt_graph2)==0 ])
+
+V(rt_graph2)$color[betweenness(rt_graph2)>2000] =  rgb(1,0,0,1)
+V(rt_graph2)$color[evcent(rt_graph2)$vector>.3] =  rgb(0,1,0,1)
+
+V(rt_graph2)$size = 2 
+V(rt_graph2)$label[evcent(rt_graph2)$vector>.3] = V(rt_graph2)$name[evcent(rt_graph2)$vector>.3]
+V(rt_graph2)$label[betweenness(rt_graph2)>2000] = V(rt_graph2)$name[betweenness(rt_graph2)>2000]
+V(rt_graph2)$label.cex = 1.2
+
+E(rt_graph2)$width = .3
+E(rt_graph2)$color = rgb(.5,.5,0,.1)
+
+set.seed(4074)
+par(bg="white", mar=c(1,1,1,1))
+plot.igraph(rt_graph2, layout=layout.fruchterman.reingold, vertex.label.color= "white", main="Whole Retweet Network")
+
+fc <- walktrap.community(rt_graph2)
+
+colors <- rainbow(max(membership(fc)))
+plot(rt_graph2,vertex.color=colors[membership(fc)], 
+     layout=layout.fruchterman.reingold)
+```
+
+Eigenvector centrality refers to the degree to which nodes are connected to other highly connected nodes. This is a standard overall indicator of influence or network power. Betweenness centrality refers to the degree to which a node connects the other nodes of the network. Nodes with high betweeness centrality are "brokers," not necessarily influential in a direct sense but powerful because they provide certain clusters with access to other clusters.
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=8, fig.width=8, fig.cap="Key Actors"}
+cent<-data.frame(bet=betweenness(rt_graph2),eig=evcent(rt_graph2)$vector)
+res<-lm(eig~bet,data=cent)$residuals
+cent<-transform(cent,res=res)
+set.seed(4074)
+key.accounts<-ggplot(cent,aes(x=bet,y=eig,
+                              label=rownames(cent),colour=res)) +
+  xlab("Betweenness Centrality") + 
+  ylab("Eigenvector Centrality") +
+  labs(title="Key Twitter Accounts") +
+  theme_bw() +
+  geom_text(size=6, position = position_jitter(width = 300, height=.15))
+
+key.accounts
+```
+
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, fig.cap="Network Time-Series"}
+setwd("~/Dropbox/gh_projects/migration_tweets/cleaned_data")
+el.df1<-read.csv("migration_el1.csv") # read in edgelist
+el.df2<-read.csv("migration_el2.csv") # read in edgelist
+el.df3<-read.csv("migration_el3.csv") # read in edgelist
+el.df4<-read.csv("migration_el4.csv") # read in edgelist
+el.df5<-read.csv("migration_el5.csv") # read in edgelist
+
+setwd("~/Dropbox/gh_projects/migration_tweets")
+el.df1<-el.df1[,2:3]
+el.df2<-el.df2[,2:3]
+el.df3<-el.df3[,2:3]
+el.df4<-el.df4[,2:3]
+el.df5<-el.df5[,2:3]
+
+rt_graph2.1 = graph.edgelist(as.matrix(el.df1), directed=TRUE)
+rt_graph2.2 = graph.edgelist(as.matrix(el.df2), directed=TRUE)
+rt_graph2.3 = graph.edgelist(as.matrix(el.df3), directed=TRUE)
+rt_graph2.4 = graph.edgelist(as.matrix(el.df4), directed=TRUE)
+rt_graph2.5 = graph.edgelist(as.matrix(el.df5), directed=TRUE)
+
+# Make and plot graph
+rt_graph2.1 = delete.vertices(rt_graph2.1, V(rt_graph2.1)[ degree(rt_graph2.1)<=1 ])
+rt_graph2.2 = delete.vertices(rt_graph2.2, V(rt_graph2.2)[ degree(rt_graph2.2)<=1 ])
+rt_graph2.3 = delete.vertices(rt_graph2.3, V(rt_graph2.3)[ degree(rt_graph2.3)<=1 ])
+rt_graph2.4 = delete.vertices(rt_graph2.4, V(rt_graph2.4)[ degree(rt_graph2.4)<=1 ])
+rt_graph2.5 = delete.vertices(rt_graph2.5, V(rt_graph2.5)[ degree(rt_graph2.5)<=1 ])
+
+V(rt_graph2.1)$color[betweenness(rt_graph2.1)>1000] =  rgb(1,0,0,1)
+V(rt_graph2.2)$color[betweenness(rt_graph2.2)>1000] =  rgb(1,0,0,1)
+V(rt_graph2.3)$color[betweenness(rt_graph2.3)>1000] =  rgb(1,0,0,1)
+V(rt_graph2.4)$color[betweenness(rt_graph2.4)>1000] =  rgb(1,0,0,1)
+V(rt_graph2.5)$color[betweenness(rt_graph2.5)>1000] =  rgb(1,0,0,1)
+
+V(rt_graph2.1)$color[evcent(rt_graph2.1)$vector>.3] =  rgb(0,1,0,1)
+V(rt_graph2.2)$color[evcent(rt_graph2.2)$vector>.3] =  rgb(0,1,0,1)
+V(rt_graph2.3)$color[evcent(rt_graph2.3)$vector>.3] =  rgb(0,1,0,1)
+V(rt_graph2.4)$color[evcent(rt_graph2.4)$vector>.3] =  rgb(0,1,0,1)
+V(rt_graph2.5)$color[evcent(rt_graph2.5)$vector>.3] =  rgb(0,1,0,1)
+
+V(rt_graph2.1)$size = 2 
+V(rt_graph2.2)$size = 2 
+V(rt_graph2.3)$size = 2 
+V(rt_graph2.4)$size = 2 
+V(rt_graph2.5)$size = 2 
+
+V(rt_graph2.1)$label[evcent(rt_graph2.1)$vector>.3] = V(rt_graph2.1)$name[evcent(rt_graph2.1)$vector>.3]
+V(rt_graph2.2)$label[evcent(rt_graph2.2)$vector>.3] = V(rt_graph2.2)$name[evcent(rt_graph2.2)$vector>.3]
+V(rt_graph2.3)$label[evcent(rt_graph2.3)$vector>.3] = V(rt_graph2.3)$name[evcent(rt_graph2.3)$vector>.3]
+V(rt_graph2.4)$label[evcent(rt_graph2.4)$vector>.3] = V(rt_graph2.4)$name[evcent(rt_graph2.4)$vector>.3]
+V(rt_graph2.5)$label[evcent(rt_graph2.5)$vector>.3] = V(rt_graph2.5)$name[evcent(rt_graph2.5)$vector>.3]
+
+
+V(rt_graph2.1)$label[betweenness(rt_graph2.1)>1000] = V(rt_graph2.1)$name[betweenness(rt_graph2.1)>1000]
+V(rt_graph2.2)$label[betweenness(rt_graph2.2)>1000] = V(rt_graph2.2)$name[betweenness(rt_graph2.2)>1000]
+V(rt_graph2.3)$label[betweenness(rt_graph2.3)>1000] = V(rt_graph2.3)$name[betweenness(rt_graph2.3)>1000]
+V(rt_graph2.4)$label[betweenness(rt_graph2.4)>1000] = V(rt_graph2.4)$name[betweenness(rt_graph2.4)>1000]
+V(rt_graph2.5)$label[betweenness(rt_graph2.5)>1000] = V(rt_graph2.5)$name[betweenness(rt_graph2.5)>1000]
+
+V(rt_graph2.1)$label.cex = 1.2
+V(rt_graph2.2)$label.cex = 1.2
+V(rt_graph2.3)$label.cex = 1.2
+V(rt_graph2.4)$label.cex = 1.2
+V(rt_graph2.5)$label.cex = 1.2
+
+E(rt_graph2.1)$width = .3
+E(rt_graph2.2)$width = .3
+E(rt_graph2.3)$width = .3
+E(rt_graph2.4)$width = .3
+E(rt_graph2.5)$width = .3
+
+E(rt_graph2.1)$color = rgb(.5,.5,0,.1)
+E(rt_graph2.2)$color = rgb(.5,.5,0,.1)
+E(rt_graph2.3)$color = rgb(.5,.5,0,.1)
+E(rt_graph2.4)$color = rgb(.5,.5,0,.1)
+E(rt_graph2.5)$color = rgb(.5,.5,0,.1)
+
+
+set.seed(4074)
+par(bg="white", mar=c(1,1,1,1), mfrow=c(2,3))
+
+plot.igraph(rt_graph2.1, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T1")
+plot.igraph(rt_graph2.2, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T2")
+plot.igraph(rt_graph2.3, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T3")
+plot.igraph(rt_graph2.4, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T4")
+plot.igraph(rt_graph2.5, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T5")
+
+# fc <- walktrap.community(rt_graph2)
+# 
+# colors <- rainbow(max(membership(fc)))
+# plot(rt_graph2,vertex.color=colors[membership(fc)], 
+#      layout=layout.fruchterman.reingold)
+```
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, results='hide'}
+
+#################################################################################
+### Top words #########
+#################################################################################
+
+df$cleantext<-gsub('http.* *', ' ', df$text)
+df$cleantext<-str_replace_all(df$cleantext, "[^[:alnum:]]", " ")
+corp<-Corpus(VectorSource(df$cleantext))
+corp <- tm_map(corp, removeNumbers)
+corp <- tm_map(corp, removePunctuation)
+corp <- tm_map(corp, stripWhitespace)
+
+my_stopwords <- c(stopwords('english'), paste(unique(df$screenName)))
+corp <- tm_map(corp, removeWords, my_stopwords)
+
+
+corp <- tm_map(corp, tolower)
+
+corp.full<-corp
+
+corp <- tm_map(corp, stemDocument, language = "english") #reduce all English words to their roots
+
+# other_stop_words<-c("psa", "polit", "rt", "panel", "amp", "politicalspik", "angeliawilson",
+#                     "politicsir", "peterjohn", "the")
+# corp <- tm_map(corp, removeWords, other_stop_words)   # remove specific word (the hashtag of interest)
+
+dtm <-DocumentTermMatrix(corp) # make a matrix of each document by every single term
+dtm <- removeSparseTerms(dtm, 0.99)
+
+terms<-as.data.frame(sort(colSums(inspect(dtm)), decreasing=TRUE))
+```
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8}
+terms$Term <- rownames(terms)
+names(terms)<-c("Frequency", "Term")
+rownames(terms) = NULL
+terms[1:25,1:2]
+
+```
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8}
+
+######## Sentiment
+setwd("~/Dropbox/gh_projects/migration_tweets/preliminary")
+hu.liu.pos=scan("positive-words.txt",what='character',comment.char=';') #load +ve sentiment word list
+hu.liu.neg=scan("negative-words.txt",what='character',comment.char=';') #load -ve sentiment word list
+pos.words=c(hu.liu.pos)
+neg.words=c(hu.liu.neg)
+
+score.sentiment = function(sentences, pos.words, neg.words, .progress='none')
+{
+  require(plyr)
+  require(stringr)
+  
+  # we got a vector of sentences. plyr will handle a list
+  # or a vector as an "l" for us
+  # we want a simple array ("a") of scores back, so we use
+  # "l" + "a" + "ply" = "laply":
+  scores = laply(sentences, function(sentence, pos.words, neg.words) {
+    
+    # clean up sentences with R's regex-driven global substitute, gsub():
+    sentence = gsub('[[:punct:]]', '', sentence)
+    sentence = gsub('[[:cntrl:]]', '', sentence)
+    sentence = gsub('\\d+', '', sentence)
+    # and convert to lower case:
+    sentence = tolower(sentence)
+    
+    # split into words. str_split is in the stringr package
+    word.list = str_split(sentence, '\\s+')
+    # sometimes a list() is one level of hierarchy too much
+    words = unlist(word.list)
+    
+    # compare our words to the dictionaries of positive & negative terms
+    pos.matches = match(words, pos.words)
+    neg.matches = match(words, neg.words)
+    
+    # match() returns the position of the matched term or NA
+    # we just want a TRUE/FALSE:
+    pos.matches = !is.na(pos.matches)
+    neg.matches = !is.na(neg.matches)
+    
+    # and conveniently enough, TRUE/FALSE will be treated as 1/0 by sum():
+    score = sum(pos.matches) - sum(neg.matches)
+    
+    return(score)
+  }, pos.words, neg.words, .progress=.progress )
+  
+  scores.df = data.frame(score=scores, text=sentences)
+  return(scores.df)
+}
+
+corp.full<-unlist(corp.full)
+
+corp.scores<-score.sentiment(corp.full,pos.words,neg.words) # get scores for the tweet text 
+
+ggplot(corp.scores, aes(x=score)) + geom_histogram(binwidth=1) + xlab("Sentiment score") + ylab("Frequency") + theme_bw() + ggtitle("The Distribution of Sentiment")
+
+corp.pos<-subset(corp.scores,corp.scores$score>=4) # get tweets with only very +ve scores
+corp.neg<-subset(corp.scores,corp.scores$score<=-4) # get tweets with only very -ve scores
+
+# mean(corp.scores$score)
+```
+
+## Random Examples of Most Negative Tweets
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8}
+corp.neg$text[1:25]
+```
+
+## Random Examples of Most Positive Tweets
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8}
+corp.pos$text[1:25]
+```
