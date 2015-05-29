@@ -23,7 +23,7 @@ require(RColorBrewer)
 load("cleaned_data/complete.RData")
 ```
 
-The code repository for this project is at [https://github.com/jmrphy/migration_tweets](https://github.com/jmrphy/migration_tweets). You can send questions or comments to Justin Murphy at [j.murphy@soton.ac.uk](mailto:j.murphy@soton.ac.uk) or [@jmrphy](http://twitter.com/jmrphy).
+The code repository for this project is at [https://github.com/jmrphy/migration_tweets](https://github.com/jmrphy/migration_tweets). You can send questions or comments to Justin Murphy at <a href="mailto:j.murphy@soton.ac.uk">j.murphy@soton.ac.uk</a> or <a href="http://twitter.com/jmrphy">@jmrphy</a>.
 
 This document is a preliminary analysis of every Twitter status update created between October 1, 2013 and March 1, 2014 which refers to immigration and contains any of the following terms: Bulgaria/Bulgarian, Romania/Romanian, England, UK, Britain. The sample contains a total of `r length(df$created_at)` tweets.
 
@@ -120,7 +120,7 @@ links<-ggplot(countlink, aes(reorder(Var1, Freq), Freq)) +
 links
 ```
 
-```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, fig.cap="Whole Network"}
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, fig.cap="Whole Network", eval=FALSE}
 setwd("~/Dropbox/gh_projects/migration_tweets/cleaned_data")
 el.df<-read.csv("migration_el.csv") # read in edgelist
 setwd("~/Dropbox/gh_projects/migration_tweets")
@@ -154,7 +154,7 @@ plot(rt_graph2,vertex.color=colors[membership(fc)],
 
 Eigenvector centrality refers to the degree to which nodes are connected to other highly connected nodes. This is a standard overall indicator of influence or network power. Betweenness centrality refers to the degree to which a node connects the other nodes of the network. Nodes with high betweeness centrality are "brokers," not necessarily influential in a direct sense but powerful because they provide certain clusters with access to other clusters.
 
-```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=8, fig.width=8, fig.cap="Key Actors"}
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=8, fig.width=8, fig.cap="Key Actors", eval=FALSE}
 cent<-data.frame(bet=betweenness(rt_graph2),eig=evcent(rt_graph2)$vector)
 res<-lm(eig~bet,data=cent)$residuals
 cent<-transform(cent,res=res)
@@ -170,14 +170,22 @@ key.accounts<-ggplot(cent,aes(x=bet,y=eig,
 key.accounts
 ```
 
+# Interactive Networks by Month
 
-```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, fig.cap="Network Time-Series"}
+For each month, the first network (blue) reflects the 99th percentile of most retweeted usernames, while the second network (red) reflects a 3% random sample of the smallest conversations (between 2 and 4 retweets).
+
+## October
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, results='asis'}
+
+require(networkD3)
+
 setwd("~/Dropbox/gh_projects/migration_tweets/cleaned_data")
 el.df1<-read.csv("migration_el1.csv") # read in edgelist
 el.df2<-read.csv("migration_el2.csv") # read in edgelist
 el.df3<-read.csv("migration_el3.csv") # read in edgelist
 el.df4<-read.csv("migration_el4.csv") # read in edgelist
 el.df5<-read.csv("migration_el5.csv") # read in edgelist
+
 
 setwd("~/Dropbox/gh_projects/migration_tweets")
 el.df1<-el.df1[,2:3]
@@ -186,86 +194,112 @@ el.df3<-el.df3[,2:3]
 el.df4<-el.df4[,2:3]
 el.df5<-el.df5[,2:3]
 
-rt_graph2.1 = graph.edgelist(as.matrix(el.df1), directed=TRUE)
-rt_graph2.2 = graph.edgelist(as.matrix(el.df2), directed=TRUE)
-rt_graph2.3 = graph.edgelist(as.matrix(el.df3), directed=TRUE)
-rt_graph2.4 = graph.edgelist(as.matrix(el.df4), directed=TRUE)
-rt_graph2.5 = graph.edgelist(as.matrix(el.df5), directed=TRUE)
+# October network graphs
 
-# Make and plot graph
-rt_graph2.1 = delete.vertices(rt_graph2.1, V(rt_graph2.1)[ degree(rt_graph2.1)<=1 ])
-rt_graph2.2 = delete.vertices(rt_graph2.2, V(rt_graph2.2)[ degree(rt_graph2.2)<=1 ])
-rt_graph2.3 = delete.vertices(rt_graph2.3, V(rt_graph2.3)[ degree(rt_graph2.3)<=1 ])
-rt_graph2.4 = delete.vertices(rt_graph2.4, V(rt_graph2.4)[ degree(rt_graph2.4)<=1 ])
-rt_graph2.5 = delete.vertices(rt_graph2.5, V(rt_graph2.5)[ degree(rt_graph2.5)<=1 ])
+post.table<-table(el.df1$who_post)
 
-V(rt_graph2.1)$color[betweenness(rt_graph2.1)>1000] =  rgb(1,0,0,1)
-V(rt_graph2.2)$color[betweenness(rt_graph2.2)>1000] =  rgb(1,0,0,1)
-V(rt_graph2.3)$color[betweenness(rt_graph2.3)>1000] =  rgb(1,0,0,1)
-V(rt_graph2.4)$color[betweenness(rt_graph2.4)>1000] =  rgb(1,0,0,1)
-V(rt_graph2.5)$color[betweenness(rt_graph2.5)>1000] =  rgb(1,0,0,1)
+simpleNetwork(el.df1[el.df1$who_post %in% names(post.table[post.table > quantile(post.table, .99)]), ], Source="who_post", Target="who_retweet", charge=-50, opacity=.5,
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=40)
 
-V(rt_graph2.1)$color[evcent(rt_graph2.1)$vector>.3] =  rgb(0,1,0,1)
-V(rt_graph2.2)$color[evcent(rt_graph2.2)$vector>.3] =  rgb(0,1,0,1)
-V(rt_graph2.3)$color[evcent(rt_graph2.3)$vector>.3] =  rgb(0,1,0,1)
-V(rt_graph2.4)$color[evcent(rt_graph2.4)$vector>.3] =  rgb(0,1,0,1)
-V(rt_graph2.5)$color[evcent(rt_graph2.5)$vector>.3] =  rgb(0,1,0,1)
+simpleNetwork(el.df1[el.df1$who_post %in% sample(names(post.table[post.table <= 4 & post.table >=2]), length(el.df1[,1])/33),], charge=-40, opacity=.5, Target="who_post", Source="who_retweet",
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=25,
+              nodeColour="red",
+              nodeClickColour="black")
 
-V(rt_graph2.1)$size = 2 
-V(rt_graph2.2)$size = 2 
-V(rt_graph2.3)$size = 2 
-V(rt_graph2.4)$size = 2 
-V(rt_graph2.5)$size = 2 
-
-V(rt_graph2.1)$label[evcent(rt_graph2.1)$vector>.3] = V(rt_graph2.1)$name[evcent(rt_graph2.1)$vector>.3]
-V(rt_graph2.2)$label[evcent(rt_graph2.2)$vector>.3] = V(rt_graph2.2)$name[evcent(rt_graph2.2)$vector>.3]
-V(rt_graph2.3)$label[evcent(rt_graph2.3)$vector>.3] = V(rt_graph2.3)$name[evcent(rt_graph2.3)$vector>.3]
-V(rt_graph2.4)$label[evcent(rt_graph2.4)$vector>.3] = V(rt_graph2.4)$name[evcent(rt_graph2.4)$vector>.3]
-V(rt_graph2.5)$label[evcent(rt_graph2.5)$vector>.3] = V(rt_graph2.5)$name[evcent(rt_graph2.5)$vector>.3]
-
-
-V(rt_graph2.1)$label[betweenness(rt_graph2.1)>1000] = V(rt_graph2.1)$name[betweenness(rt_graph2.1)>1000]
-V(rt_graph2.2)$label[betweenness(rt_graph2.2)>1000] = V(rt_graph2.2)$name[betweenness(rt_graph2.2)>1000]
-V(rt_graph2.3)$label[betweenness(rt_graph2.3)>1000] = V(rt_graph2.3)$name[betweenness(rt_graph2.3)>1000]
-V(rt_graph2.4)$label[betweenness(rt_graph2.4)>1000] = V(rt_graph2.4)$name[betweenness(rt_graph2.4)>1000]
-V(rt_graph2.5)$label[betweenness(rt_graph2.5)>1000] = V(rt_graph2.5)$name[betweenness(rt_graph2.5)>1000]
-
-V(rt_graph2.1)$label.cex = 1.2
-V(rt_graph2.2)$label.cex = 1.2
-V(rt_graph2.3)$label.cex = 1.2
-V(rt_graph2.4)$label.cex = 1.2
-V(rt_graph2.5)$label.cex = 1.2
-
-E(rt_graph2.1)$width = .3
-E(rt_graph2.2)$width = .3
-E(rt_graph2.3)$width = .3
-E(rt_graph2.4)$width = .3
-E(rt_graph2.5)$width = .3
-
-E(rt_graph2.1)$color = rgb(.5,.5,0,.1)
-E(rt_graph2.2)$color = rgb(.5,.5,0,.1)
-E(rt_graph2.3)$color = rgb(.5,.5,0,.1)
-E(rt_graph2.4)$color = rgb(.5,.5,0,.1)
-E(rt_graph2.5)$color = rgb(.5,.5,0,.1)
-
-
-set.seed(4074)
-par(bg="white", mar=c(1,1,1,1), mfrow=c(2,3))
-
-plot.igraph(rt_graph2.1, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T1")
-plot.igraph(rt_graph2.2, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T2")
-plot.igraph(rt_graph2.3, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T3")
-plot.igraph(rt_graph2.4, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T4")
-plot.igraph(rt_graph2.5, layout=layout.fruchterman.reingold, vertex.label.color= "red", main="T5")
-
-# fc <- walktrap.community(rt_graph2)
-# 
-# colors <- rainbow(max(membership(fc)))
-# plot(rt_graph2,vertex.color=colors[membership(fc)], 
-#      layout=layout.fruchterman.reingold)
 ```
 
-```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, results='hide'}
+## November
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, results='asis'}
+post.table<-table(el.df2$who_post)
+
+simpleNetwork(el.df2[el.df2$who_post %in% names(post.table[post.table > quantile(post.table, .99)]), ], Source="who_post", Target="who_retweet", charge=-50, opacity=.5,
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=40)
+
+simpleNetwork(el.df2[el.df2$who_post %in% sample(names(post.table[post.table <= 4 & post.table >=2]), length(el.df2[,1])/33),], charge=-40, opacity=.5, Target="who_post", Source="who_retweet",
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=25,
+              nodeColour="red",
+              nodeClickColour="black")
+
+```
+
+## December
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, results='asis'}
+post.table<-table(el.df3$who_post)
+
+simpleNetwork(el.df3[el.df3$who_post %in% names(post.table[post.table > quantile(post.table, .99)]), ], Source="who_post", Target="who_retweet", charge=-50, opacity=.5,
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=40)
+
+simpleNetwork(el.df3[el.df3$who_post %in% sample(names(post.table[post.table <= 4 & post.table >=2]), length(el.df3[,1])/33),], charge=-40, opacity=.5, Target="who_post", Source="who_retweet",
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=25,
+              nodeColour="red",
+              nodeClickColour="black")
+
+```
+
+## January
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, results='asis'}
+post.table<-table(el.df4$who_post)
+
+simpleNetwork(el.df4[el.df4$who_post %in% names(post.table[post.table > quantile(post.table, .99)]), ], Source="who_post", Target="who_retweet", charge=-50, opacity=.5,
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=40)
+
+simpleNetwork(el.df4[el.df4$who_post %in% sample(names(post.table[post.table <= 4 & post.table >=2]), length(el.df4[,1])/33),], charge=-40, opacity=.5, Target="who_post", Source="who_retweet",
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=25,
+              nodeColour="red",
+              nodeClickColour="black")
+
+```
+
+## February
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, results='asis'}
+post.table<-table(el.df5$who_post)
+
+simpleNetwork(el.df5[el.df5$who_post %in% names(post.table[post.table > quantile(post.table, .99)]), ], Source="who_post", Target="who_retweet", charge=-50, opacity=.5,
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=40)
+
+simpleNetwork(el.df5[el.df5$who_post %in% sample(names(post.table[post.table <= 4 & post.table >=2]), length(el.df5[,1])/33),], charge=-40, opacity=.5, Target="who_post", Source="who_retweet",
+              width=900,
+              height=800,
+              fontSize = 12,
+              linkDistance=25,
+              nodeColour="red",
+              nodeClickColour="black")
+
+```
+Below are the most central accounts for each month. The first group of five list those with the highest eigenvector centrality for each month (in order). The second group of five list those with the highest betweenness centrality for each month (in order). 
+
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, results='hide', eval=FALSE}
 
 #################################################################################
 ### Top words #########
@@ -298,7 +332,8 @@ dtm <- removeSparseTerms(dtm, 0.99)
 terms<-as.data.frame(sort(colSums(inspect(dtm)), decreasing=TRUE))
 ```
 
-```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8}
+
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, eval=FALSE}
 terms$Term <- rownames(terms)
 names(terms)<-c("Frequency", "Term")
 rownames(terms) = NULL
@@ -306,7 +341,7 @@ terms[1:25,1:2]
 
 ```
 
-```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8}
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, eval=FALSE}
 
 ######## Sentiment
 setwd("~/Dropbox/gh_projects/migration_tweets/preliminary")
@@ -371,12 +406,12 @@ corp.neg<-subset(corp.scores,corp.scores$score<=-4) # get tweets with only very 
 
 ## Random Examples of Most Negative Tweets
 
-```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8}
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, eval=FALSE}
 corp.neg$text[1:25]
 ```
 
 ## Random Examples of Most Positive Tweets
 
-```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8}
+```{r, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=11, fig.width=8, eval=FALSE}
 corp.pos$text[1:25]
 ```

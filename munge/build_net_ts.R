@@ -6,11 +6,15 @@ require(igraph)
 
 Sys.setlocale(locale="C")
 
-per1<-df[1:27392,]
-per2<-df[27393:54785,]
-per3<-df[54786:82177,]
-per4<-df[82178:109569,]
-per5<-df[109569:136960,]
+require(lubridate)
+df$time<-as.POSIXct(dmy_hms(substr(df$created_at, 6, 25)))
+df<-df[with(df, order(time)), ]
+
+per1<-df[month(df$time) == 10,]
+per2<-df[month(df$time) == 11,]
+per3<-df[month(df$time) == 12,]
+per4<-df[month(df$time) == 01,]
+per5<-df[month(df$time) == 02,]
 
 # Let's Identify retweets
 # regular expressions to find retweets
@@ -29,6 +33,9 @@ rt_patterns = grep("(RT|via)((?:\\b\\W*@\\w+)+)",
 
 who_retweet = as.list(1:length(rt_patterns))
 who_post = as.list(1:length(rt_patterns))
+rt_tweet = as.list(1:length(rt_patterns))
+
+
 
 
 # for loop
@@ -37,7 +44,7 @@ for (i in 1:length(rt_patterns))
   # get tweet with retweet entity
   twit = per1[rt_patterns[i],]
   # get retweet source 
-  poster = str_extract_all(twit$text,
+  poster = str_extract(twit$text,
                            "(RT|via)((?:\\b\\W*@\\w+)+)") 
   #remove ':'
   poster = gsub(":", "", unlist(poster)) 
@@ -45,11 +52,14 @@ for (i in 1:length(rt_patterns))
   who_post[[i]] = gsub("(RT @|via @)", "", poster, ignore.case=TRUE) 
   # name of retweeting user 
   who_retweet[[i]] = rep(twit$user.screen_name, length(poster)) 
+  # retweeted text
+  rt_tweet[[i]] = twit$text 
 }
 
 # unlist results
 who_post = unlist(who_post)
 who_retweet = unlist(who_retweet)
+rt_tweet = unlist(rt_tweet)
 
 # print(paste(length(unique(who_post)), " users retweeted by ", length(unique(who_retweet)), " users ", sep=""))
 
@@ -57,7 +67,7 @@ who_retweet = unlist(who_retweet)
 
 # Create graph from an edglist
 # two column matrix of edges
-retweeter_poster = cbind(who_retweet, who_post)
+retweeter_poster = cbind(who_post,who_retweet, rt_tweet)
 
 # generate graph
 el.df1<-as.data.frame(retweeter_poster)
